@@ -1,3 +1,6 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -6,30 +9,41 @@ public class TypingTest {
 
     private static String lastInput = "";
     private static Scanner scanner = new Scanner(System.in);
-    public static class InputRunnable implements Runnable {
+    private static int correctCount = 0;
 
-        //TODO: Implement a thread to get user input without blocking the main thread
+    public static class InputRunnable implements Runnable {
         @Override
         public void run() {
-
+            lastInput = scanner.nextLine();
         }
     }
 
-
-    public static void testWord(String wordToTest) {
+    public static void testWord(String wordToTest) throws InterruptedException {
         try {
-            System.out.println(wordToTest);
+            System.out.println("Type this: " + wordToTest);
             lastInput = "";
 
-            // TODO
+            Thread inputThread = new Thread(new InputRunnable());
+            inputThread.start();
 
-            System.out.println();
+            // Wait for the user to finish typing or time out after 10 seconds
+            int timeout = 10000; // milliseconds
+            inputThread.join(timeout);
+
+            if (inputThread.isAlive()) {
+                inputThread.interrupt(); // Input took too long
+                System.out.println("\nTime's up!");
+            }
+
             System.out.println("You typed: " + lastInput);
             if (lastInput.equals(wordToTest)) {
-                System.out.println("Correct");
+                System.out.println("Correct ✅");
+                correctCount++;
             } else {
-                System.out.println("Incorrect");
+                System.out.println("Incorrect ❌");
             }
+
+            System.out.println();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -37,27 +51,47 @@ public class TypingTest {
     }
 
     public static void typingTest(List<String> inputList) throws InterruptedException {
+        correctCount = 0;
 
-        for (int i = 0; i < inputList.size(); i++) {
-            String wordToTest = inputList.get(i);
+        for (String wordToTest : inputList) {
             testWord(wordToTest);
-            Thread.sleep(2000); // Pause briefly before showing the next word
+            Thread.sleep(1000); // Brief pause
         }
 
-        // TODO: Display a summary of test results
+        System.out.println("Test complete. You got " + correctCount + " out of " + inputList.size() + " correct.");
+    }
+
+    public static List<String> loadWordsFromFile(String filePath) {
+        List<String> words = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.trim().isEmpty()) {
+                    words.add(line.trim());
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading from file: " + e.getMessage());
+        }
+        return words;
     }
 
     public static void main(String[] args) throws InterruptedException {
-        List<String> words = new ArrayList<>();
-        words.add("remember");
-        words.add("my friend");
-        words.add("boredom");
-        words.add("is a");
-        words.add("crime");
+        // Load from file (ensure file exists in correct path)
+        List<String> words = loadWordsFromFile("resources/Words.txt");
 
-        // TODO: Replace the hardcoded word list with words read from the given file in the resources folder (Words.txt)
+        if (words.isEmpty()) {
+            System.out.println("No words found. Using default list.");
+            words.add("remember");
+            words.add("my friend");
+            words.add("boredom");
+            words.add("is a");
+            words.add("crime");
+        }
+
         typingTest(words);
 
         System.out.println("Press enter to exit.");
+        scanner.nextLine();
     }
 }
